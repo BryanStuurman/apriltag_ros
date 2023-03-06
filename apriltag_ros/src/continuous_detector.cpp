@@ -51,18 +51,32 @@ void ContinuousDetector::onInit ()
   std::string transport_hint;
   pnh.param<std::string>("transport_hint", transport_hint, "raw");
 
+  single_shot_detection_ = getAprilTagOption<bool>(pnh,"single_shot_detection",false);
+  timeout_ = getAprilTagOption<double>(pnh,"timeout",5);
+
   int queue_size;
-  pnh.param<int>("queue_size", queue_size, 1);
-  camera_image_subscriber_ =
-      it_->subscribeCamera("image_rect", queue_size,
-                          &ContinuousDetector::imageCallback, this,
-                          image_transport::TransportHints(transport_hint));
+    pnh.param<int>("queue_size", queue_size, 1);
+    camera_image_subscriber_ =
+        it_->subscribeCamera("image_rect", queue_size,
+                            &ContinuousDetector::imageCallback, this,
+                            image_transport::TransportHints(transport_hint));
+
+  if (!single_shot_detection_)
+  {
+    ROS_INFO("Running in continuous mode.");
+  }
+  else{
+    ROS_INFO("Running in single shot detection mode.");
+  }
+  
   tag_detections_publisher_ =
       nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   if (draw_tag_detections_image_)
   {
     tag_detections_image_publisher_ = it_->advertise("tag_detections_image", 1);
   }
+
+  single_shot_service_ = nh.advertiseService("single_shot_detect_tags", &ContinuousDetector::singleShotService, this);
 }
 
 void ContinuousDetector::imageCallback (
@@ -93,9 +107,14 @@ void ContinuousDetector::imageCallback (
   }
 
   // Publish detected tags in the image by AprilTag 2
-  tag_detections_publisher_.publish(
-      tag_detector_->detectTags(cv_image_,camera_info));
-
+  if (single_shot_detection_)
+  {
+    detections_ = tag_detector_->detectTags(cv_image_,camera_info);
+    tag_detections_publisher_.publish(detections_);
+  }else{
+    tag_detections_publisher_.publish(
+        tag_detector_->detectTags(cv_image_,camera_info));
+  }
   // Publish the camera image overlaid by outlines of the detected tags and
   // their payload values
   if (draw_tag_detections_image_)
@@ -103,6 +122,31 @@ void ContinuousDetector::imageCallback (
     tag_detector_->drawDetections(cv_image_);
     tag_detections_image_publisher_.publish(cv_image_->toImageMsg());
   }
+
+}
+
+bool ContinuousDetector::singleShotService(
+    apriltag_ros::SingleShotRequest& request,
+    apriltag_ros::SingleShotResponse& response)
+{ //TODO Does it make sense to check the timestamp on detections_ to make sure it's not too old?
+  if (camera_image_subscriber_){
+    camera_image_subscriber_ = it_->subscribeCamera("image_rect", 1, &ContinuousDetector::imageCallback, this);
+    response.success = true;
+    response.message = "Single shot tag detection activated.";
+    response.num_detections = detections_.detections.size();
+    response.any_detections = response.num_detections>0;
+    response.tag_detections = detections_;
+  }
+  else
+  {
+    response.success = false;
+    if (!single_shot_detection_){
+      response.message = "Not in single shot detection mode.";
+    }else{
+      response.message = "Already waiting for single shot detection.";
+    }
+  }
+  return true;
 }
 
 } // namespace apriltag_ros

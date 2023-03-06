@@ -1,0 +1,14 @@
+# Trigger-like Service which returns:
+#
+#  tag_detection  : an AprilTagDetectionArray message containing detection results
+#  num_detections : an int equal to the number of tag detections found 
+#  any_detections : a bool indicating whether any detections were found
+#  success        : a bool indicating success or failure of the service call
+#  message        : a string for messaging
+
+---
+apriltag_ros/AprilTagDetectionArray tag_detections
+uint8 num_detections # if you expect more than 256 detections, this isn't the service type for you
+bool any_detections  # redundant, but convenient
+bool success
+string message

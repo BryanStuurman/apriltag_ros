@@ -56,6 +56,7 @@ add_message_files(
 add_service_files(
   FILES
   AnalyzeSingleImage.srv
+  SingleShot.srv
 )
 
 generate_messages(
