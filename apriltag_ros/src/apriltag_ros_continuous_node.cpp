@@ -44,10 +44,7 @@ int main(int argc, char **argv)
   nodelet.load(ros::this_node::getName(),
               "apriltag_ros/ContinuousDetector",
               remap, nargv);
-  
-  // ros::spin();
-  ros::AsyncSpinner spinner(2);
-  spinner.start();
-  ros::waitForShutdown();
+
+  ros::spin();
   return 0;
 }

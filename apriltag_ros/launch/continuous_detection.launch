@@ -7,23 +7,23 @@
   <arg name="image_topic" default="image_rect" />
   <arg name="queue_size" default="1" />
   <arg name="single_shot" default="false" />
-  <arg name="timeout" default="5" />
 
   <!-- apriltag_ros continuous detection node -->
-  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="apriltag_ros_continuous_node" clear_params="true" output="screen" launch-prefix="$(arg launch_prefix)">
-    <!-- Remap topics from those used in code to those on the ROS network -->
-    <remap from="image_rect" to="$(arg camera_name)/$(arg image_topic)" />
-    <remap from="camera_info" to="$(arg camera_name)/camera_info" />
+  <group ns="apriltag_ros_continuous_node">
+    <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="apriltag_ros_continuous_node" clear_params="true" output="screen" launch-prefix="$(arg launch_prefix)">
+      <!-- Remap topics from those used in code to those on the ROS network -->
+      <remap from="image_rect" to="$(arg camera_name)/$(arg image_topic)" />
+      <remap from="camera_info" to="$(arg camera_name)/camera_info" />
 
-    <param name="publish_tag_detections_image" type="bool" value="true" /><!-- default: false -->
-    <param name="queue_size" type="int" value="$(arg queue_size)" />
+      <param name="publish_tag_detections_image" type="bool" value="true" /><!-- default: false -->
+      <param name="queue_size" type="int" value="$(arg queue_size)" />
 
-    <param name="single_shot_detection" type="bool" value="$(arg single_shot)" />
-    <param name="timeout" type="double" value="$(arg timeout)" />
+      <param name="single_shot_detection" type="bool" value="$(arg single_shot)" />
 
-    <!-- load parameters (incl. tag family, tags, etc.) -->
-    <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml"/>
-    <!-- <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml"/> -->
-    <rosparam command="load" file="$(find etb_support)/config/april_tag/empty_tags.yaml"/>
-  </node>
+      <!-- load parameters (incl. tag family, tags, etc.) -->
+      <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml"/>
+      <!-- <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml"/> -->
+      <rosparam command="load" file="$(find etb_support)/config/april_tag/empty_tags.yaml"/>
+    </node>
+  </group>
 </launch>

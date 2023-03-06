@@ -52,7 +52,6 @@ void ContinuousDetector::onInit ()
   pnh.param<std::string>("transport_hint", transport_hint, "raw");
 
   single_shot_detection_ = getAprilTagOption<bool>(pnh,"single_shot_detection",false);
-  timeout_ = getAprilTagOption<double>(pnh,"timeout",5);
 
   int queue_size;
     pnh.param<int>("queue_size", queue_size, 1);
