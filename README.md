@@ -89,3 +89,5 @@ If you use this code, please kindly inform [Danylo Malyuta](mailto:danylo.malyut
   year = {2016}
 }
 ```
+#TODO:
+  - reset the detections_ member variable after returning from singleshot detection call. (i.e. check no mem leak introduced)

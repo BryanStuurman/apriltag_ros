@@ -110,6 +110,7 @@ void ContinuousDetector::imageCallback (
   {
     detections_ = tag_detector_->detectTags(cv_image_,camera_info);
     tag_detections_publisher_.publish(detections_);
+    have_detection_ = true;
   }else{
     tag_detections_publisher_.publish(
         tag_detector_->detectTags(cv_image_,camera_info));
@@ -128,21 +129,30 @@ bool ContinuousDetector::singleShotService(
     apriltag_ros::SingleShotRequest& request,
     apriltag_ros::SingleShotResponse& response)
 { //TODO Does it make sense to check the timestamp on detections_ to make sure it's not too old?
-  if (camera_image_subscriber_){
+  //TODO This is probably not the right if condition. Need a way to make sure that the detections object is valid. Could be trash in which case we should fail the service call.
+  if (camera_image_subscriber_ && have_detection_){
     camera_image_subscriber_ = it_->subscribeCamera("image_rect", 1, &ContinuousDetector::imageCallback, this);
     response.success = true;
     response.message = "Single shot tag detection activated.";
     response.num_detections = detections_.detections.size();
     response.any_detections = response.num_detections>0;
     response.tag_detections = detections_;
+    detections_.detections.clear(); // TODO is this memory-leak safe/free? if detections contain (stupid) pointers to dynamically allocated memory, then that's a leak
+    detections_.header = std_msgs::Header();
+    have_detection_ = false; //this probably removes the need to reset the detection object
   }
   else
   {
     response.success = false;
     if (!single_shot_detection_){
       response.message = "Not in single shot detection mode.";
+      return false;
+    }else if (!have_detection_){
+      response.message = "No valid detection data available.";
+      return false;
     }else{
-      response.message = "Already waiting for single shot detection.";
+      response.message = "Unclear what went wrong.";
+      return false;
     }
   }
   return true;
