@@ -130,6 +130,7 @@ bool ContinuousDetector::singleShotService(
     apriltag_ros::SingleShotResponse& response)
 { //TODO Does it make sense to check the timestamp on detections_ to make sure it's not too old?
   //TODO This is probably not the right if condition. Need a way to make sure that the detections object is valid. Could be trash in which case we should fail the service call.
+  //TODO does it make sense for the image subscriber to check for blank/black images? maybe that can be treated as a failure rather than a "no tags detected" mode.
   if (camera_image_subscriber_ && have_detection_){
     camera_image_subscriber_ = it_->subscribeCamera("image_rect", 1, &ContinuousDetector::imageCallback, this);
     response.success = true;
