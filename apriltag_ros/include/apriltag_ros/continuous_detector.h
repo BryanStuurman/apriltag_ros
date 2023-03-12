@@ -73,7 +73,9 @@ class ContinuousDetector: public nodelet::Nodelet
   bool draw_tag_detections_image_;
   bool single_shot_detection_;
   apriltag_ros::AprilTagDetectionArray detections_;
-  bool have_detection_ = false;
+  double singleshot_timeout_;
+  bool detect_ = false;
+  int sem_ = 0;
   cv_bridge::CvImagePtr cv_image_;
 
   std::shared_ptr<image_transport::ImageTransport> it_;

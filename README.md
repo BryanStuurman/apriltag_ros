@@ -90,4 +90,5 @@ If you use this code, please kindly inform [Danylo Malyuta](mailto:danylo.malyut
 }
 ```
 #TODO:
-  - reset the detections_ member variable after returning from singleshot detection call. (i.e. check no mem leak introduced)
+  - Make sure detections_ clear in singleshot srv callback is mem leak safe
+  - Do some decruft after review

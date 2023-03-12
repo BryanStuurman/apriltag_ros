@@ -6,7 +6,8 @@
   <arg name="camera_name" default="/camera_rect" />
   <arg name="image_topic" default="image_rect" />
   <arg name="queue_size" default="1" />
-  <arg name="single_shot" default="false" />
+  <arg name="single_shot" default="false" /> <!-- run in single shot mode -->
+  <arg name="singleshot_timeout" default="2" /> <!-- timeout for single shot mode service -->
 
   <!-- apriltag_ros continuous detection node -->
   <group ns="apriltag_ros_continuous_node">
@@ -19,6 +20,7 @@
       <param name="queue_size" type="int" value="$(arg queue_size)" />
 
       <param name="single_shot_detection" type="bool" value="$(arg single_shot)" />
+      <param name="singleshot_timeout" type="double" value="$(arg singleshot_timeout)" />
 
       <!-- load parameters (incl. tag family, tags, etc.) -->
       <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml"/>

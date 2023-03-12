@@ -39,8 +39,12 @@ namespace apriltag_ros
 {
 void ContinuousDetector::onInit ()
 {
-  ros::NodeHandle& nh = getNodeHandle();
-  ros::NodeHandle& pnh = getPrivateNodeHandle();
+  // ros::NodeHandle& nh = getNodeHandle();
+  // ros::NodeHandle& pnh = getPrivateNodeHandle();
+
+  // using MT (multithreaded) nodehandles in onInit of a nodelet will thread out subscriber/service callbacks (needed for singleshot mode)
+  ros::NodeHandle& nh = getMTNodeHandle();
+  ros::NodeHandle& pnh = getMTPrivateNodeHandle();
 
   tag_detector_ = std::shared_ptr<TagDetector>(new TagDetector(pnh));
   draw_tag_detections_image_ = getAprilTagOption<bool>(pnh, 
@@ -51,7 +55,8 @@ void ContinuousDetector::onInit ()
   std::string transport_hint;
   pnh.param<std::string>("transport_hint", transport_hint, "raw");
 
-  single_shot_detection_ = getAprilTagOption<bool>(pnh,"single_shot_detection",false);
+  single_shot_detection_ = getAprilTagOption<bool>(pnh,"single_shot_detection",false); //default false
+  singleshot_timeout_ = getAprilTagOption<double>(pnh,"singleshot_timeout",2); //default 2 seconds
 
   int queue_size;
     pnh.param<int>("queue_size", queue_size, 1);
@@ -67,7 +72,7 @@ void ContinuousDetector::onInit ()
   else{
     ROS_INFO("Running in single shot detection mode.");
   }
-  
+
   tag_detections_publisher_ =
       nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   if (draw_tag_detections_image_)
@@ -85,6 +90,7 @@ void ContinuousDetector::imageCallback (
   // Lazy updates:
   // When there are no subscribers _and_ when tf is not published,
   // skip detection.
+  // TODO add !single_shot_detection_ as a condition?
   if (tag_detections_publisher_.getNumSubscribers() == 0 &&
       tag_detections_image_publisher_.getNumSubscribers() == 0 &&
       !tag_detector_->get_publish_tf())
@@ -106,11 +112,17 @@ void ContinuousDetector::imageCallback (
   }
 
   // Publish detected tags in the image by AprilTag 2
+  // when in singleshot mode, if a detection is requested (set by service callback), do the detection and set the semaphore
   if (single_shot_detection_)
   {
-    detections_ = tag_detector_->detectTags(cv_image_,camera_info);
-    tag_detections_publisher_.publish(detections_);
-    have_detection_ = true;
+    if (detect_){
+      ROS_INFO("Image subscriber callback");
+      detections_ = tag_detector_->detectTags(cv_image_,camera_info);
+      tag_detections_publisher_.publish(detections_);
+      sem_=0;
+    }else{ // otherwise do nothing and return
+      return;
+    }
   }else{
     tag_detections_publisher_.publish(
         tag_detector_->detectTags(cv_image_,camera_info));
@@ -128,12 +140,28 @@ void ContinuousDetector::imageCallback (
 bool ContinuousDetector::singleShotService(
     apriltag_ros::SingleShotRequest& request,
     apriltag_ros::SingleShotResponse& response)
-{ //TODO Does it make sense to check the timestamp on detections_ to make sure it's not too old?
-  //TODO This is probably not the right if condition. Need a way to make sure that the detections object is valid. Could be trash in which case we should fail the service call.
+{
   //TODO does it make sense for the image subscriber to check for blank/black images? maybe that can be treated as a failure rather than a "no tags detected" mode.
-  //TODO should we be checking camera_image_subscriber_.getNumPublishers() > 0? Seems like this might make the most sense for dropout robustness.
-  if (camera_image_subscriber_ && have_detection_){
-    camera_image_subscriber_ = it_->subscribeCamera("image_rect", 1, &ContinuousDetector::imageCallback, this);
+  if (camera_image_subscriber_){
+    detect_ = true; // requesting a detection
+    sem_ = -1; // set the semaphore
+    // setup timeout logic
+    ros::Time start = ros::Time::now();
+    ros::Time now = start;
+    ros::Duration timeout = ros::Duration(singleshot_timeout_);
+    ros::Duration elapsed = start-now;
+    while(ros::ok() && 0!=sem_){// wait for camera subscriber to set the semaphore back to 0
+      now = ros::Time::now();
+      elapsed = now - start;
+      if (elapsed > timeout){
+        response.message = "Service timeout while waiting for image.";
+        response.success = false;
+        detect_ = false;
+        ROS_ERROR("%s",response.message.c_str());
+        return false;
+      }
+  }
+
     response.success = true;
     response.message = "Single shot tag detection activated.";
     response.num_detections = detections_.detections.size();
@@ -141,16 +169,13 @@ bool ContinuousDetector::singleShotService(
     response.tag_detections = detections_;
     detections_.detections.clear(); // TODO is this memory-leak safe/free? if detections contain (stupid) pointers to dynamically allocated memory, then that's a leak
     detections_.header = std_msgs::Header();
-    have_detection_ = false; //this probably removes the need to reset the detection object
+    detect_ = false;
   }
   else
   {
     response.success = false;
     if (!single_shot_detection_){
       response.message = "Not in single shot detection mode.";
-      return false;
-    }else if (!have_detection_){
-      response.message = "No valid detection data available.";
       return false;
     }else{
       response.message = "Unclear what went wrong.";
