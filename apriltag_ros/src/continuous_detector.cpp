@@ -93,7 +93,8 @@ void ContinuousDetector::imageCallback (
   // TODO add !single_shot_detection_ as a condition?
   if (tag_detections_publisher_.getNumSubscribers() == 0 &&
       tag_detections_image_publisher_.getNumSubscribers() == 0 &&
-      !tag_detector_->get_publish_tf())
+      !tag_detector_->get_publish_tf() &&
+      !single_shot_detection_)
   {
     // ROS_INFO_STREAM("No subscribers and no tf publishing, skip processing.");
     return;
