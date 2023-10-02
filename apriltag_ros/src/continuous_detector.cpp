@@ -117,7 +117,7 @@ void ContinuousDetector::imageCallback (
   if (single_shot_detection_)
   {
     if (detect_){
-      ROS_INFO("Image subscriber callback");
+      // ROS_DEBUG("Image subscriber callback");
       detections_ = tag_detector_->detectTags(cv_image_,camera_info);
       tag_detections_publisher_.publish(detections_);
       sem_=0;
